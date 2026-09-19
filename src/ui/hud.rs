@@ -1,0 +1,315 @@
+use crate::splitter_core::weapon::{Weapon, WeaponKind};
+use bevy::prelude::*;
+use std::collections::HashSet; // References existing weapon structures[cite: 2]
+
+use crate::ui::definitions::*;
+
+use crate::player::movement::PlayerBlink;
+
+pub fn setup_hud(mut commands: Commands) {
+    commands
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::SpaceBetween,
+            padding: UiRect::all(Val::Px(16.0)),
+            ..default()
+        })
+        .with_children(|root| {
+            // TOP HUD
+            root.spawn(Node {
+                flex_direction: FlexDirection::Row,
+                justify_content: JustifyContent::Center,
+                ..default()
+            })
+            .with_children(|top_bar| {
+                top_bar.spawn((
+                    Text::new("SHIELD: ACTIVE | HULL: UNREPAIRABLE"),
+                    TextFont {
+                        font_size: FontSize::Px(16.0),
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.2, 0.8, 1.0)),
+                ));
+            });
+
+            // BOTTOM HUD
+            root.spawn(Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
+                justify_content: JustifyContent::SpaceBetween,
+                align_items: AlignItems::FlexEnd,
+                ..default()
+            })
+            .with_children(|bottom_bar| {
+                spawn_blink_ui(bottom_bar);
+
+                // WEAPON CONTAINER WITH MARKER
+                bottom_bar.spawn((
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        column_gap: Val::Px(12.0),
+                        ..default()
+                    },
+                    UiWeaponContainer,
+                ));
+            });
+        });
+}
+
+// Automatically creates UI cards when new Weapon entities exist
+pub fn sync_weapon_cards(
+    mut commands: Commands,
+    container_query: Query<Entity, With<UiWeaponContainer>>,
+    weapon_query: Query<Entity, With<Weapon>>,
+    card_query: Query<&WeaponUiCard>,
+) {
+    let Ok(container_entity) = container_query.single() else {
+        return;
+    };
+
+    let existing_cards: HashSet<Entity> =
+        card_query.iter().map(|card| card.target_weapon).collect();
+
+    for weapon_entity in weapon_query.iter() {
+        if !existing_cards.contains(&weapon_entity) {
+            commands.entity(container_entity).with_children(|parent| {
+                spawn_weapon_card(parent, weapon_entity);
+            });
+        }
+    }
+}
+
+fn spawn_blink_ui(parent: &mut ChildSpawnerCommands) {
+    parent
+        .spawn((
+            Node {
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(6.0),
+                padding: UiRect::all(Val::Px(10.0)),
+                border: UiRect::all(Val::Px(1.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.05, 0.05, 0.05, 0.85)),
+            BorderColor::all(Color::srgb(0.3, 0.3, 0.3)),
+        ))
+        .with_children(|panel| {
+            panel.spawn((
+                Text::new("STRAFE BLINK"),
+                TextFont {
+                    font_size: FontSize::Px(12.0),
+                    ..default()
+                },
+                TextColor(Color::srgb(0.7, 0.7, 0.7)),
+            ));
+
+            spawn_cooldown_row(panel, "Q [LEFT]", UiBlinkBarQ);
+            spawn_cooldown_row(panel, "E [RIGHT]", UiBlinkBarE);
+        });
+}
+
+fn spawn_cooldown_row(parent: &mut ChildSpawnerCommands, label: &str, marker: impl Component) {
+    parent
+        .spawn(Node {
+            flex_direction: FlexDirection::Row,
+            align_items: AlignItems::Center,
+            column_gap: Val::Px(8.0),
+            ..default()
+        })
+        .with_children(|row| {
+            row.spawn((
+                Text::new(label),
+                TextFont {
+                    font_size: FontSize::Px(14.0),
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ));
+
+            row.spawn((
+                Node {
+                    width: Val::Px(80.0),
+                    height: Val::Px(10.0),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
+            ))
+            .with_children(|bar_bg| {
+                bar_bg.spawn((
+                    Node {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.0, 0.9, 0.4)),
+                    marker,
+                ));
+            });
+        });
+}
+
+fn spawn_weapon_card(parent: &mut ChildSpawnerCommands, weapon_entity: Entity) {
+    parent
+        .spawn((
+            WeaponUiCard {
+                target_weapon: weapon_entity,
+            },
+            Node {
+                flex_direction: FlexDirection::Column,
+                width: Val::Px(160.0),
+                padding: UiRect::all(Val::Px(10.0)),
+                row_gap: Val::Px(6.0),
+                border: UiRect::all(Val::Px(1.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.08, 0.08, 0.08, 0.9)),
+            BorderColor::all(Color::srgb(0.4, 0.4, 0.4)),
+        ))
+        .with_children(|card| {
+            card.spawn((
+                Text::new("WEAPON SLOT"),
+                TextFont {
+                    font_size: FontSize::Px(13.0),
+                    ..default()
+                },
+                TextColor(Color::srgb(0.8, 0.8, 0.8)),
+            ));
+
+            card.spawn((
+                Text::new("AMMO: --/--"),
+                TextFont {
+                    font_size: FontSize::Px(14.0),
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+                UiAmmoText,
+            ));
+
+            card.spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(8.0),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
+            ))
+            .with_children(|bar_bg| {
+                bar_bg.spawn((
+                    Node {
+                        width: Val::Percent(0.0),
+                        height: Val::Percent(100.0),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(1.0, 0.3, 0.0)),
+                    UiHeatBarInner,
+                ));
+            });
+
+            card.spawn((
+                Text::new("READY"),
+                TextFont {
+                    font_size: FontSize::Px(11.0),
+                    ..default()
+                },
+                TextColor(Color::srgb(0.5, 0.5, 0.5)),
+                UiLaserStatusText,
+            ));
+        });
+}
+
+pub fn update_weapon_ui(
+    weapons: Query<&Weapon>,
+    cards: Query<(&WeaponUiCard, &Children)>,
+    mut ammo_texts: Query<&mut Text, (With<UiAmmoText>, Without<UiLaserStatusText>)>,
+    mut status_texts: Query<&mut Text, (With<UiLaserStatusText>, Without<UiAmmoText>)>,
+    mut heat_bars: Query<&mut Node, With<UiHeatBarInner>>,
+) {
+    for (card, children) in cards.iter() {
+        let Ok(weapon) = weapons.get(card.target_weapon) else {
+            continue;
+        };
+
+        for child in children.iter() {
+            match &weapon.kind {
+                WeaponKind::Projectile {
+                    current_ammo,
+                    max_ammo,
+                    reload_timer,
+                    ..
+                } => {
+                    if let Ok(mut text) = ammo_texts.get_mut(child) {
+                        if *current_ammo == 0 {
+                            let pct = (reload_timer.fraction() * 100.0) as u32;
+                            **text = format!("RELOADING ({pct}%)");
+                        } else {
+                            **text = format!("AMMO: {current_ammo}/{max_ammo}");
+                        }
+                    }
+                    if let Ok(mut bar) = heat_bars.get_mut(child) {
+                        bar.width = Val::Percent(0.0);
+                    }
+                    if let Ok(mut status) = status_texts.get_mut(child) {
+                        if status.is_empty() {
+                            **status = "PROJECTILE".to_string();
+                        }
+                    }
+                }
+                WeaponKind::Laser {
+                    current_heat,
+                    max_heat,
+                    is_recharging,
+                    ..
+                } => {
+                    if let Ok(mut text) = ammo_texts.get_mut(child) {
+                        let pct = ((current_heat / max_heat) * 100.0) as u32;
+                        **text = format!("HEAT: {pct}%");
+                    }
+                    if let Ok(mut bar) = heat_bars.get_mut(child) {
+                        let fill = (current_heat / max_heat).clamp(0.0, 1.0) * 100.0;
+                        bar.width = Val::Percent(fill);
+                    }
+                    if let Ok(mut status) = status_texts.get_mut(child) {
+                        if *is_recharging {
+                            **status = "OVERHEATED".to_string();
+                        } else {
+                            **status = "LASER READY".to_string();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn update_blink_ui(
+    time: Res<Time>,
+    mut blink_query: Query<&mut PlayerBlink, With<crate::player::Player>>,
+    mut q_bar: Query<&mut Node, (With<UiBlinkBarQ>, Without<UiBlinkBarE>)>,
+    mut e_bar: Query<&mut Node, (With<UiBlinkBarE>, Without<UiBlinkBarQ>)>,
+) {
+    let Ok(mut blink) = blink_query.single_mut() else {
+        return;
+    };
+
+    blink.q_cooldown.tick(time.delta());
+    blink.e_cooldown.tick(time.delta());
+
+    if let Ok(mut node) = q_bar.single_mut() {
+        let pct = if blink.q_cooldown.is_finished() {
+            100.0
+        } else {
+            blink.q_cooldown.fraction() * 100.0
+        };
+        node.width = Val::Percent(pct);
+    }
+
+    if let Ok(mut node) = e_bar.single_mut() {
+        let pct = if blink.e_cooldown.is_finished() {
+            100.0
+        } else {
+            blink.e_cooldown.fraction() * 100.0
+        };
+        node.width = Val::Percent(pct);
+    }
+}

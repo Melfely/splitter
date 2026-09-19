@@ -18,23 +18,21 @@ impl Default for PlayerBlink {
 }
 
 pub fn player_movement(
-    mut query: Query<(&mut Transform, &Player)>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
+    mut query: Query<(&mut Transform, &Player, &mut PlayerBlink)>,
 ) {
-    for (mut transform, player) in query.iter_mut() {
+    for (mut transform, player, mut blink) in query.iter_mut() {
         let mut forward_movement = 0.0;
         let mut rotation_movement = 0.0;
 
-        // Forward/Backward (W/S)
+        // Steering & Tank Drive[cite: 2]
         if keyboard_input.pressed(KeyCode::KeyW) {
             forward_movement += 1.0;
         }
         if keyboard_input.pressed(KeyCode::KeyS) {
             forward_movement -= 1.0;
         }
-
-        // Steering (A/D)
         if keyboard_input.pressed(KeyCode::KeyA) {
             rotation_movement += 1.0;
         }
@@ -42,20 +40,21 @@ pub fn player_movement(
             rotation_movement -= 1.0;
         }
 
-        // Fixed: delta_seconds() is now delta_secs()
         transform.rotate_z(rotation_movement * player.turn_speed * time.delta_secs());
-
         let up = transform.local_y();
         transform.translation += up * forward_movement * player.move_speed * time.delta_secs();
 
-        // Blink (Q/E)
-        if keyboard_input.just_pressed(KeyCode::KeyQ) {
+        // Strafe Blink Q / E (Cooldown Gated)[cite: 2]
+        if keyboard_input.just_pressed(KeyCode::KeyQ) && blink.q_cooldown.is_finished() {
             let left = -transform.local_x();
             transform.translation += left * player.blink_distance;
+            blink.q_cooldown.reset();
         }
-        if keyboard_input.just_pressed(KeyCode::KeyE) {
+
+        if keyboard_input.just_pressed(KeyCode::KeyE) && blink.e_cooldown.is_finished() {
             let right = transform.local_x();
             transform.translation += right * player.blink_distance;
+            blink.e_cooldown.reset();
         }
     }
 }

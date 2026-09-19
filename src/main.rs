@@ -18,6 +18,7 @@ fn main() {
         .add_plugins(player::PlayerPlugin)
         .add_systems(Startup, setup_camera)
         .add_plugins(splitter_core::SplitterCorePlugin)
+        .add_plugins(ui::UIPlugin)
         .run();
 }
 

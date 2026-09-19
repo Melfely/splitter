@@ -2,7 +2,7 @@ use crate::splitter_core::laser::{LaserPattern, PLAYER_LASER_LENGTH};
 use crate::splitter_core::turret::{Turret, TurretTarget};
 use crate::splitter_core::weapon::{Weapon, WeaponKind, WeaponTrigger};
 
-use crate::player::movement::player_movement;
+use crate::player::movement::{PlayerBlink, player_movement};
 use crate::player::weapon::{
     CoaxialWeapon, MainWeapon, PlayerTurret, player_mouse_aiming, player_weapon_input,
 };
@@ -44,6 +44,7 @@ pub fn spawn_player(
             Mesh2d(meshes.add(Rectangle::new(60.0, 80.0))),
             MeshMaterial2d(hull_color),
             Transform::from_xyz(0.0, 0.0, 0.0),
+            PlayerBlink::default(),
             Player {
                 move_speed: 150.0,
                 turn_speed: 2.5,
