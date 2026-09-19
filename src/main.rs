@@ -1,8 +1,12 @@
 use bevy::prelude::*;
 
+pub mod enemies;
+pub mod physics;
 pub mod player;
 pub mod splitter_core;
 pub mod ui;
+
+pub mod camera;
 
 fn main() {
     App::new()
@@ -16,13 +20,9 @@ fn main() {
             ..default()
         }))
         .add_plugins(player::PlayerPlugin)
-        .add_systems(Startup, setup_camera)
+        .add_systems(Startup, camera::setup_camera)
+        .add_systems(Update, camera::fit_camera_viewport)
         .add_plugins(splitter_core::SplitterCorePlugin)
         .add_plugins(ui::UIPlugin)
         .run();
-}
-
-fn setup_camera(mut commands: Commands) {
-    // Fixed: Camera2dBundle was removed; Camera2d is now used directly
-    commands.spawn(Camera2d);
 }

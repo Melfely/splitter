@@ -1,4 +1,4 @@
-use crate::splitter_core::weapon::{Weapon, WeaponKind};
+use crate::splitter_core::weapon::{ProjectileState, Weapon, WeaponKind};
 use bevy::prelude::*;
 use std::collections::HashSet; // References existing weapon structures[cite: 2]
 
@@ -235,15 +235,18 @@ pub fn update_weapon_ui(
                 WeaponKind::Projectile {
                     current_ammo,
                     max_ammo,
-                    reload_timer,
+                    state,
                     ..
                 } => {
                     if let Ok(mut text) = ammo_texts.get_mut(child) {
-                        if *current_ammo == 0 {
-                            let pct = (reload_timer.fraction() * 100.0) as u32;
-                            **text = format!("RELOADING ({pct}%)");
-                        } else {
-                            **text = format!("AMMO: {current_ammo}/{max_ammo}");
+                        match state {
+                            ProjectileState::Reloading(timer) => {
+                                let pct = (timer.fraction() * 100.0) as u32;
+                                **text = format!("RELOADING ({pct}%)");
+                            }
+                            _ => {
+                                **text = format!("AMMO: {current_ammo}/{max_ammo}");
+                            }
                         }
                     }
                     if let Ok(mut bar) = heat_bars.get_mut(child) {

@@ -15,17 +15,27 @@ pub struct Weapon {
     pub kind: WeaponKind,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum ProjectileState {
+    /// Weapon is ready to fire immediately.
+    Ready,
+    /// Intra-reloading: The delay between consecutive shots in the same magazine.
+    IntraReloading(Timer),
+    /// Full reload: Reloading an entire magazine or resetting a single-shot cannon.
+    Reloading(Timer),
+}
+
 pub enum WeaponKind {
     Projectile {
-        mass: f32,                  // Counters enemy bulk[cite: 2]
-        speed: f32,                 // Counters enemy hardness[cite: 2]
-        can_pierce: bool,           // Passed to projectile to allow over-piercing[cite: 2]
-        aoe_max_range: Option<f32>, // Passed to projectile to trigger explosion[cite: 2]
+        mass: f32,  // Counters enemy bulk
+        speed: f32, // Counters enemy hardness
+        can_pierce: bool,
+        aoe_max_range: Option<f32>,
         current_ammo: u32,
-        max_ammo: u32, // Defines magazine size (1 for single-shot)[cite: 2]
-        fire_timer: Timer,
-        reload_timer: Timer,
-        // Visual assets defined per-weapon
+        max_ammo: u32,
+        fire_delay: f32,   // Seconds between shots (intra-reload)
+        reload_delay: f32, // Seconds to perform full reload
+        state: ProjectileState,
         mesh: Handle<Mesh>,
         material: Handle<ColorMaterial>,
     },
@@ -52,19 +62,34 @@ pub fn update_weapon_firing(
         // 1. Process passive weapon mechanics
         match &mut weapon.kind {
             WeaponKind::Projectile {
-                fire_timer,
-                reload_timer,
                 current_ammo,
                 max_ammo,
+                reload_delay,
+                state,
                 ..
             } => {
-                fire_timer.tick(time.delta());
-
-                if *current_ammo == 0 {
-                    reload_timer.tick(time.delta());
-                    if reload_timer.just_finished() {
-                        *current_ammo = *max_ammo;
-                        reload_timer.reset(); // Reset the clock so future reload cycles can finish!
+                match state {
+                    ProjectileState::Ready => {
+                        // Auto-trigger reload if out of ammo
+                        if *current_ammo == 0 {
+                            *state = ProjectileState::Reloading(Timer::from_seconds(
+                                *reload_delay,
+                                TimerMode::Once,
+                            ));
+                        }
+                    }
+                    ProjectileState::IntraReloading(timer) => {
+                        timer.tick(time.delta());
+                        if timer.just_finished() {
+                            *state = ProjectileState::Ready;
+                        }
+                    }
+                    ProjectileState::Reloading(timer) => {
+                        timer.tick(time.delta());
+                        if timer.just_finished() {
+                            *current_ammo = *max_ammo;
+                            *state = ProjectileState::Ready;
+                        }
                     }
                 }
             }
@@ -97,36 +122,53 @@ pub fn update_weapon_firing(
 
             match &mut weapon.kind {
                 WeaponKind::Projectile {
-                    current_ammo,
-                    fire_timer,
                     mass,
                     speed,
                     can_pierce,
                     aoe_max_range,
+                    current_ammo,
+                    fire_delay,
+                    reload_delay,
+                    state,
                     mesh,
                     material,
                     ..
                 } => {
-                    if *current_ammo > 0 && fire_timer.is_finished() {
-                        *current_ammo -= 1;
-                        fire_timer.reset();
+                    // Only attempt firing when strictly in the Ready state with available ammo
+                    if let ProjectileState::Ready = state {
+                        if *current_ammo > 0 {
+                            *current_ammo -= 1;
 
-                        commands.spawn((
-                            Projectile {
-                                mass: *mass,
-                                speed: *speed,
-                                hit_entities: HashSet::new(),
-                                can_pierce: *can_pierce,
-                                aoe_max_range: *aoe_max_range,
-                                distance_traveled: 0.0,
-                            },
-                            // Visuals attached directly from weapon configuration
-                            Mesh2d(mesh.clone()),
-                            MeshMaterial2d(material.clone()),
-                            Transform::from_xyz(spawn_pos.x, spawn_pos.y, 0.0)
-                                .with_rotation(global_transform.compute_transform().rotation),
-                            GlobalTransform::default(),
-                        ));
+                            // Spawn physical projectile
+                            commands.spawn((
+                                Projectile {
+                                    mass: *mass,
+                                    speed: *speed,
+                                    hit_entities: HashSet::new(),
+                                    can_pierce: *can_pierce,
+                                    aoe_max_range: *aoe_max_range,
+                                    distance_traveled: 0.0,
+                                },
+                                Mesh2d(mesh.clone()),
+                                MeshMaterial2d(material.clone()),
+                                Transform::from_xyz(spawn_pos.x, spawn_pos.y, 0.0)
+                                    .with_rotation(global_transform.compute_transform().rotation),
+                                GlobalTransform::default(),
+                            ));
+
+                            // Transition state depending on remaining rounds
+                            if *current_ammo == 0 {
+                                *state = ProjectileState::Reloading(Timer::from_seconds(
+                                    *reload_delay,
+                                    TimerMode::Once,
+                                ));
+                            } else {
+                                *state = ProjectileState::IntraReloading(Timer::from_seconds(
+                                    *fire_delay,
+                                    TimerMode::Once,
+                                ));
+                            }
+                        }
                     }
                 }
                 WeaponKind::Laser {

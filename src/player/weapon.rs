@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::splitter_core::turret::TurretTarget;
-use crate::splitter_core::weapon::WeaponTrigger;
+use crate::splitter_core::weapon::{ProjectileState, Weapon, WeaponKind, WeaponTrigger};
 
 use bevy::window::PrimaryWindow;
 
@@ -55,6 +55,36 @@ pub fn player_mouse_aiming(
     if let Ok(world_position) = camera.viewport_to_world_2d(camera_transform, cursor_position) {
         for mut target in q_turret_target.iter_mut() {
             target.world_pos = Some(world_position);
+        }
+    }
+}
+
+pub fn player_reload_input(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut query: Query<&mut Weapon>,
+) {
+    if keyboard_input.just_pressed(KeyCode::KeyR) {
+        for mut weapon in query.iter_mut() {
+            if let WeaponKind::Projectile {
+                current_ammo,
+                max_ammo,
+                reload_delay,
+                state,
+                ..
+            } = &mut weapon.kind
+            {
+                // Only start a reload if magazine is below capacity and not already reloading
+                if *current_ammo < *max_ammo {
+                    if let ProjectileState::Reloading(_) = state {
+                        // Already reloading, do nothing
+                    } else {
+                        *state = ProjectileState::Reloading(Timer::from_seconds(
+                            *reload_delay,
+                            TimerMode::Once,
+                        ));
+                    }
+                }
+            }
         }
     }
 }

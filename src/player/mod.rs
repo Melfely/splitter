@@ -1,10 +1,11 @@
 use crate::splitter_core::laser::{LaserPattern, PLAYER_LASER_LENGTH};
 use crate::splitter_core::turret::{Turret, TurretTarget};
-use crate::splitter_core::weapon::{Weapon, WeaponKind, WeaponTrigger};
+use crate::splitter_core::weapon::{ProjectileState, Weapon, WeaponKind, WeaponTrigger};
 
 use crate::player::movement::{PlayerBlink, player_movement};
 use crate::player::weapon::{
-    CoaxialWeapon, MainWeapon, PlayerTurret, player_mouse_aiming, player_weapon_input,
+    CoaxialWeapon, MainWeapon, PlayerTurret, player_mouse_aiming, player_reload_input,
+    player_weapon_input,
 };
 
 pub mod movement;
@@ -18,7 +19,12 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn_player).add_systems(
             Update,
-            (player_movement, player_mouse_aiming, player_weapon_input),
+            (
+                player_movement,
+                player_mouse_aiming,
+                player_weapon_input,
+                player_reload_input,
+            ),
         );
     }
 }
@@ -99,15 +105,16 @@ pub fn spawn_player(
                         WeaponTrigger::default(),
                         Weapon {
                             kind: WeaponKind::Projectile {
-                                mass: 30.0,
-                                speed: 300.0,
+                                mass: 15.0,
+                                speed: 450.0,
                                 can_pierce: false,
                                 aoe_max_range: None,
-                                current_ammo: 10,
-                                max_ammo: 10,
-                                fire_timer: Timer::from_seconds(0.2, TimerMode::Repeating),
-                                reload_timer: Timer::from_seconds(3.0, TimerMode::Once),
-                                mesh: meshes.add(Circle::new(8.0)),
+                                current_ammo: 20,
+                                max_ammo: 20,
+                                fire_delay: 0.1, // 0.1 seconds between shots in the burst
+                                reload_delay: 2.5, // 2.5 second magazine reload
+                                state: ProjectileState::Ready,
+                                mesh: meshes.add(Circle::new(4.0)),
                                 material: materials.add(Color::srgb(0.9, 0.1, 0.1)),
                             },
                         },
