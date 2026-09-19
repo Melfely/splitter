@@ -1,3 +1,4 @@
+use crate::GameplaySet;
 use crate::splitter_core::laser::LaserPattern;
 use crate::splitter_core::turret::{Turret, TurretTarget};
 use crate::splitter_core::weapon::{ProjectileState, Weapon, WeaponKind, WeaponTrigger};
@@ -7,7 +8,7 @@ use crate::splitter_core::PLAYER_ATTACK_DISTANCE;
 use crate::player::movement::{PlayerBlink, player_movement};
 use crate::player::weapon::{
     CoaxialWeapon, MainWeapon, PlayerTurret, player_mouse_aiming, player_reload_input,
-    player_weapon_input,
+    player_weapon_input, render_turret_aim_indicator,
 };
 
 use crate::physics::definitions::{Collider, CollisionLayer};
@@ -15,21 +16,25 @@ use crate::physics::definitions::{Collider, CollisionLayer};
 pub mod movement;
 pub mod weapon;
 
+use crate::GameState;
 use bevy::prelude::*;
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_player).add_systems(
-            Update,
-            (
-                player_movement,
-                player_mouse_aiming,
-                player_weapon_input,
-                player_reload_input,
-            ),
-        );
+        app.add_systems(OnEnter(GameState::InGame), spawn_player)
+            .add_systems(
+                Update,
+                (
+                    player_movement,
+                    player_mouse_aiming,
+                    player_weapon_input,
+                    player_reload_input,
+                    render_turret_aim_indicator,
+                )
+                    .in_set(GameplaySet),
+            );
     }
 }
 
@@ -114,19 +119,19 @@ pub fn spawn_player(
                         WeaponTrigger::default(),
                         Weapon {
                             kind: WeaponKind::Projectile {
-                                mass: 15.0,
-                                speed: 450.0,
-                                radius: 4.0, // Matches 4.0 circle mesh radius
+                                mass: 25.0,
+                                speed: 300.0,
+                                radius: 8.0, // Matches collision bounds
                                 layer: CollisionLayer::PlayerProjectile, // Correct collision layer
-                                can_pierce: false,
+                                can_pierce: true,
                                 aoe_max_range: None,
-                                current_ammo: 20,
-                                max_ammo: 20,
-                                fire_delay: 0.1,
-                                reload_delay: 2.5,
+                                current_ammo: 1,
+                                max_ammo: 1,
+                                fire_delay: 0.0,
+                                reload_delay: 1.25,
                                 state: ProjectileState::Ready,
-                                mesh: meshes.add(Circle::new(4.0)),
-                                material: materials.add(Color::srgb(0.9, 0.1, 0.1)),
+                                mesh: meshes.add(Rectangle::new(8.0, 16.0)),
+                                material: materials.add(Color::srgb(0.9, 0.8, 0.2)),
                             },
                         },
                     ));

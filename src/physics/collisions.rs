@@ -78,3 +78,26 @@ pub fn should_collide(layer_a: CollisionLayer, layer_b: CollisionLayer) -> bool 
         _ => false,
     }
 }
+
+/// Returns the distance along the ray (origin + dir * d) where it first hits a circle collider.
+pub fn ray_circle_intersection(origin: Vec2, dir: Vec2, center: Vec2, radius: f32) -> Option<f32> {
+    let to_center = center - origin;
+    let proj = to_center.dot(dir);
+
+    // Circle is behind the turret barrel
+    if proj < 0.0 {
+        return None;
+    }
+
+    let perp_sq = to_center.length_squared() - proj * proj;
+    let radius_sq = radius * radius;
+
+    // Ray misses the circle entirely
+    if perp_sq > radius_sq {
+        return None;
+    }
+
+    // Distance from ray origin to the circle entry point
+    let d = proj - (radius_sq - perp_sq).sqrt();
+    if d >= 0.0 { Some(d) } else { None }
+}

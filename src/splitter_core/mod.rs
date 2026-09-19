@@ -4,6 +4,7 @@ pub mod projectile;
 pub mod turret;
 pub mod weapon;
 
+use crate::GameplaySet;
 use crate::splitter_core::hit_particle::update_hit_particles;
 use crate::splitter_core::projectile::{handle_projectile_collisions, update_projectile_movement};
 use crate::splitter_core::turret::update_turret_aiming;
@@ -34,17 +35,18 @@ pub struct SplitterCorePlugin;
 
 impl Plugin for SplitterCorePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, update_turret_aiming)
-            .add_systems(Update, update_weapon_firing)
-            .add_systems(
-                Update,
-                (
-                    update_projectile_movement,
-                    handle_projectile_collisions,
-                    despawn_expired_lifetimes,
-                    update_hit_particles,
-                ),
-            );
+        app.add_systems(
+            Update,
+            (
+                update_projectile_movement,
+                handle_projectile_collisions,
+                despawn_expired_lifetimes,
+                update_hit_particles,
+                update_turret_aiming,
+                update_weapon_firing,
+            )
+                .in_set(GameplaySet),
+        );
 
         // As you build out more shared utilities (like physics mass calculations or generic health components),
         // register their systems and events here.

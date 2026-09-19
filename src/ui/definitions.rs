@@ -26,3 +26,15 @@ pub struct UiWeaponContainer;
 
 #[derive(Component)]
 pub struct UiFpsText;
+
+#[derive(Component)]
+pub struct UiWaveText;
+
+#[derive(Component)]
+pub struct UiEnemiesText;
+
+#[derive(Component)]
+pub struct UiKillsText;
+
+#[derive(Component)]
+pub struct UiGameTimerText;

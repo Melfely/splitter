@@ -1,7 +1,12 @@
 use bevy::prelude::*;
+use std::collections::HashSet;
 
 use crate::splitter_core::turret::TurretTarget;
 use crate::splitter_core::weapon::{ProjectileState, Weapon, WeaponKind, WeaponTrigger};
+
+use crate::physics::collisions::ray_circle_intersection;
+use crate::physics::definitions::{CELL_SIZE, Collider, CollisionLayer, SpatialGrid};
+use crate::player::PLAYER_ATTACK_DISTANCE;
 
 use bevy::window::PrimaryWindow;
 
@@ -86,5 +91,84 @@ pub fn player_reload_input(
                 }
             }
         }
+    }
+}
+
+pub fn render_turret_aim_indicator(
+    grid: Res<SpatialGrid>,
+    turret_query: Query<&GlobalTransform, With<PlayerTurret>>,
+    collider_query: Query<(Entity, &GlobalTransform, &Collider)>,
+    mut gizmos: Gizmos,
+) {
+    let Ok(turret_transform) = turret_query.single() else {
+        return;
+    };
+
+    let origin = turret_transform.translation().truncate();
+    let direction = turret_transform.up().truncate();
+
+    let mut closest_hit_dist = PLAYER_ATTACK_DISTANCE;
+    let mut hit_entity: Option<Entity> = None;
+    let mut visited_entities = HashSet::new();
+
+    let step_size = CELL_SIZE;
+    let steps = (PLAYER_ATTACK_DISTANCE / step_size).ceil() as usize;
+
+    for i in 0..=steps {
+        let sample_point = origin + direction * (i as f32 * step_size);
+        let cell_x = (sample_point.x / CELL_SIZE).floor() as i32;
+        let cell_y = (sample_point.y / CELL_SIZE).floor() as i32;
+
+        if let Some(entities) = grid.cells.get(&(cell_x, cell_y)) {
+            for &entity in entities {
+                if !visited_entities.insert(entity) {
+                    continue;
+                }
+
+                let Ok((_, target_transform, collider)) = collider_query.get(entity) else {
+                    continue;
+                };
+
+                if collider.layer != CollisionLayer::EnemyMainBody
+                    && collider.layer != CollisionLayer::EnemyLimb
+                {
+                    continue;
+                }
+
+                let target_pos = target_transform.translation().truncate();
+                if let Some(dist) =
+                    ray_circle_intersection(origin, direction, target_pos, collider.radius)
+                {
+                    if dist < closest_hit_dist {
+                        closest_hit_dist = dist;
+                        hit_entity = Some(entity);
+                    }
+                }
+            }
+        }
+    }
+
+    let impact_pos = origin + direction * closest_hit_dist;
+    let dark_blue = Color::srgb(0.0, 0.2, 0.85);
+
+    // Render ONLY the Dark Blue Crosshair at the impact location
+    let crosshair_size = 8.0;
+
+    // Horizontal line
+    gizmos.line_2d(
+        impact_pos - Vec2::X * crosshair_size,
+        impact_pos + Vec2::X * crosshair_size,
+        dark_blue,
+    );
+    // Vertical line
+    gizmos.line_2d(
+        impact_pos - Vec2::Y * crosshair_size,
+        impact_pos + Vec2::Y * crosshair_size,
+        dark_blue,
+    );
+
+    // Circle lock-on ring when pointing at an enemy
+    if hit_entity.is_some() {
+        gizmos.circle_2d(impact_pos, 12.0, dark_blue);
     }
 }

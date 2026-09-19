@@ -1,30 +1,47 @@
 use bevy::prelude::*;
 
+pub mod camera;
 pub mod enemies;
+pub mod menu;
 pub mod physics;
 pub mod player;
 pub mod splitter_core;
 pub mod ui;
+pub mod wave;
 
-pub mod camera;
+use menu::GameState;
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct GameplaySet;
+
+pub struct GameplayPlugin;
+
+impl Plugin for GameplayPlugin {
+    fn build(&self, app: &mut App) {
+        app.configure_sets(Update, GameplaySet.run_if(in_state(GameState::InGame)))
+            .add_plugins((
+                splitter_core::SplitterCorePlugin, //[cite: 1]
+                player::PlayerPlugin,              //[cite: 1]
+                enemies::EnemiesPlugin,            //[cite: 2]
+                physics::SplitterPhysicsPlugin,    //[cite: 4]
+                wave::SplitterWavePlugin,
+                ui::UIPlugin,
+            ));
+    }
+}
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Splitter".into(),
-                // Fixed: Resolution now takes u32 integers instead of floats
                 present_mode: bevy::window::PresentMode::AutoNoVsync,
                 ..default()
             }),
             ..default()
         }))
-        .add_plugins(player::PlayerPlugin)
+        .add_plugins((menu::MainMenuPlugin, GameplayPlugin))
         .add_systems(Startup, camera::setup_camera)
         .add_systems(Update, camera::fit_camera_viewport)
-        .add_plugins(splitter_core::SplitterCorePlugin)
-        .add_plugins(ui::UIPlugin)
-        .add_plugins(enemies::EnemiesPlugin)
-        .add_plugins(physics::SplitterPhysicsPlugin)
         .run();
 }

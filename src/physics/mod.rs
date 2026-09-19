@@ -1,3 +1,4 @@
+use crate::GameplaySet;
 use crate::physics::collisions::check_collisions;
 use crate::physics::definitions::{CollisionMessage, SpatialGrid};
 use crate::physics::grid::update_spatial_grid;
@@ -20,7 +21,8 @@ impl Plugin for SplitterPhysicsPlugin {
                 (
                     update_spatial_grid,
                     check_collisions.after(update_spatial_grid),
-                ),
+                )
+                    .in_set(GameplaySet),
             );
     }
 }

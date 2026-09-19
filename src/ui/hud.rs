@@ -1,3 +1,4 @@
+use crate::menu::GameState;
 use crate::splitter_core::weapon::{ProjectileState, Weapon, WeaponKind};
 use bevy::prelude::*;
 use std::collections::HashSet; // References existing weapon structures[cite: 2]
@@ -17,7 +18,66 @@ pub fn setup_hud(mut commands: Commands) {
             ..default()
         })
         .with_children(|root| {
-            // TOP HUD
+            // TOP-LEFT WAVE STATS PANEL
+            root.spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(16.0),
+                    left: Val::Px(16.0),
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(4.0),
+                    padding: UiRect::all(Val::Px(10.0)),
+                    border: UiRect::all(Val::Px(1.0)),
+                    ..default()
+                },
+                // Auto-despawns the entire HUD tree when transitioning out of InGame
+                DespawnOnExit(GameState::InGame),
+                BackgroundColor(Color::srgba(0.05, 0.05, 0.05, 0.85)),
+                BorderColor::all(Color::srgb(0.3, 0.3, 0.3)),
+            ))
+            .with_children(|wave_panel| {
+                wave_panel.spawn((
+                    Text::new("WAVE: 0"),
+                    TextFont {
+                        font_size: FontSize::Px(15.0),
+                        ..default()
+                    },
+                    TextColor(Color::srgb(1.0, 0.8, 0.2)),
+                    UiWaveText,
+                ));
+
+                wave_panel.spawn((
+                    Text::new("ENEMIES: 0"),
+                    TextFont {
+                        font_size: FontSize::Px(13.0),
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.8, 0.8, 0.8)),
+                    UiEnemiesText,
+                ));
+
+                wave_panel.spawn((
+                    Text::new("KILLS: 0"),
+                    TextFont {
+                        font_size: FontSize::Px(13.0),
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.8, 0.8, 0.8)),
+                    UiKillsText,
+                ));
+
+                wave_panel.spawn((
+                    Text::new("TIME: 00:00"),
+                    TextFont {
+                        font_size: FontSize::Px(13.0),
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.6, 0.6, 0.6)),
+                    UiGameTimerText,
+                ));
+            });
+
+            // TOP-CENTER HUD
             root.spawn(Node {
                 flex_direction: FlexDirection::Row,
                 justify_content: JustifyContent::Center,
@@ -360,5 +420,70 @@ pub fn update_fps_ui(
         for mut text in fps_texts.iter_mut() {
             **text = format!("FPS: {fps}");
         }
+    }
+}
+
+use crate::wave::definitions::WaveState;
+
+pub fn update_wave_ui(
+    wave_state: Res<WaveState>,
+    mut wave_texts: Query<
+        &mut Text,
+        (
+            With<UiWaveText>,
+            Without<UiEnemiesText>,
+            Without<UiKillsText>,
+            Without<UiGameTimerText>,
+        ),
+    >,
+    mut enemies_texts: Query<
+        &mut Text,
+        (
+            With<UiEnemiesText>,
+            Without<UiWaveText>,
+            Without<UiKillsText>,
+            Without<UiGameTimerText>,
+        ),
+    >,
+    mut kills_texts: Query<
+        &mut Text,
+        (
+            With<UiKillsText>,
+            Without<UiWaveText>,
+            Without<UiEnemiesText>,
+            Without<UiGameTimerText>,
+        ),
+    >,
+    mut timer_texts: Query<
+        &mut Text,
+        (
+            With<UiGameTimerText>,
+            Without<UiWaveText>,
+            Without<UiEnemiesText>,
+            Without<UiKillsText>,
+        ),
+    >,
+) {
+    if !wave_state.is_changed() {
+        return;
+    }
+
+    for mut text in wave_texts.iter_mut() {
+        **text = format!("WAVE: {}", wave_state.current_wave);
+    }
+
+    for mut text in enemies_texts.iter_mut() {
+        **text = format!("ENEMIES: {}", wave_state.current_enemies);
+    }
+
+    for mut text in kills_texts.iter_mut() {
+        **text = format!("KILLS: {}", wave_state.total_enemies_killed);
+    }
+
+    for mut text in timer_texts.iter_mut() {
+        let total_seconds = wave_state.game_timer as u32;
+        let minutes = total_seconds / 60;
+        let seconds = total_seconds % 60;
+        **text = format!("TIME: {minutes:02}:{seconds:02}");
     }
 }
