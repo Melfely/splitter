@@ -1,12 +1,16 @@
-use crate::splitter_core::laser::{LaserPattern, PLAYER_LASER_LENGTH};
+use crate::splitter_core::laser::LaserPattern;
 use crate::splitter_core::turret::{Turret, TurretTarget};
 use crate::splitter_core::weapon::{ProjectileState, Weapon, WeaponKind, WeaponTrigger};
+
+use crate::splitter_core::PLAYER_ATTACK_DISTANCE;
 
 use crate::player::movement::{PlayerBlink, player_movement};
 use crate::player::weapon::{
     CoaxialWeapon, MainWeapon, PlayerTurret, player_mouse_aiming, player_reload_input,
     player_weapon_input,
 };
+
+use crate::physics::definitions::{Collider, CollisionLayer};
 
 pub mod movement;
 pub mod weapon;
@@ -56,6 +60,11 @@ pub fn spawn_player(
                 turn_speed: 2.5,
                 blink_distance: 100.0,
             },
+            // Added Collider explicitly to the hull entity
+            Collider {
+                radius: 40.0, // Tightly bounds the 60x80 rectangle
+                layer: CollisionLayer::Player,
+            },
         ))
         .with_children(|parent| {
             // Coaxial Weapon (Fixed to front right of the hull)
@@ -63,7 +72,7 @@ pub fn spawn_player(
                 Mesh2d(meshes.add(Rectangle::new(10.0, 40.0))),
                 MeshMaterial2d(weapon_color.clone()),
                 Transform::from_xyz(20.0, 40.0, -0.1),
-                CoaxialWeapon, // Marker for Right Click[cite: 2]
+                CoaxialWeapon, // Marker for Right Click
                 WeaponTrigger::default(),
                 Weapon {
                     kind: WeaponKind::Laser {
@@ -76,7 +85,7 @@ pub fn spawn_player(
                         recharge_timer: Timer::from_seconds(2.0, TimerMode::Once),
                         is_recharging: false,
                         pattern: LaserPattern::Lightning {
-                            length: PLAYER_LASER_LENGTH,
+                            length: PLAYER_ATTACK_DISTANCE, // Always reaches past screen edges[cite: 1]
                             segment_length: 50.0,
                             jitter: 15.0,
                         },
@@ -101,18 +110,20 @@ pub fn spawn_player(
                         Mesh2d(meshes.add(Rectangle::new(12.0, 50.0))),
                         MeshMaterial2d(weapon_color),
                         Transform::from_xyz(0.0, 30.0, -0.1),
-                        MainWeapon, // Marker for Left Click[cite: 2]
+                        MainWeapon, // Marker for Left Click
                         WeaponTrigger::default(),
                         Weapon {
                             kind: WeaponKind::Projectile {
                                 mass: 15.0,
                                 speed: 450.0,
+                                radius: 4.0, // Matches 4.0 circle mesh radius
+                                layer: CollisionLayer::PlayerProjectile, // Correct collision layer
                                 can_pierce: false,
                                 aoe_max_range: None,
                                 current_ammo: 20,
                                 max_ammo: 20,
-                                fire_delay: 0.1, // 0.1 seconds between shots in the burst
-                                reload_delay: 2.5, // 2.5 second magazine reload
+                                fire_delay: 0.1,
+                                reload_delay: 2.5,
                                 state: ProjectileState::Ready,
                                 mesh: meshes.add(Circle::new(4.0)),
                                 material: materials.add(Color::srgb(0.9, 0.1, 0.1)),

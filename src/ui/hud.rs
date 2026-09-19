@@ -34,6 +34,31 @@ pub fn setup_hud(mut commands: Commands) {
                 ));
             });
 
+            // TOP-RIGHT FPS COUNTER
+            root.spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(16.0),
+                    right: Val::Px(16.0),
+                    padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
+                    border: UiRect::all(Val::Px(1.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.05, 0.05, 0.05, 0.85)),
+                BorderColor::all(Color::srgb(0.3, 0.3, 0.3)),
+            ))
+            .with_children(|fps_panel| {
+                fps_panel.spawn((
+                    Text::new("FPS: --"),
+                    TextFont {
+                        font_size: FontSize::Px(13.0),
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.0, 0.9, 0.4)),
+                    UiFpsText,
+                ));
+            });
+
             // BOTTOM HUD
             root.spawn(Node {
                 width: Val::Percent(100.0),
@@ -45,7 +70,6 @@ pub fn setup_hud(mut commands: Commands) {
             .with_children(|bottom_bar| {
                 spawn_blink_ui(bottom_bar);
 
-                // WEAPON CONTAINER WITH MARKER
                 bottom_bar.spawn((
                     Node {
                         flex_direction: FlexDirection::Row,
@@ -314,5 +338,27 @@ pub fn update_blink_ui(
             blink.e_cooldown.fraction() * 100.0
         };
         node.width = Val::Percent(pct);
+    }
+}
+
+// System to update FPS value smooth over 0.25s intervals
+pub fn update_fps_ui(
+    time: Res<Time>,
+    mut accumulated_frames: Local<u32>,
+    mut accumulated_time: Local<f32>,
+    mut fps_texts: Query<&mut Text, With<UiFpsText>>,
+) {
+    let dt = time.delta_secs();
+    *accumulated_time += dt;
+    *accumulated_frames += 1;
+
+    if *accumulated_time >= 0.25 {
+        let fps = (*accumulated_frames as f32 / *accumulated_time).round() as u32;
+        *accumulated_frames = 0;
+        *accumulated_time = 0.0;
+
+        for mut text in fps_texts.iter_mut() {
+            **text = format!("FPS: {fps}");
+        }
     }
 }

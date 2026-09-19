@@ -2,7 +2,9 @@ use bevy::prelude::*;
 use std::collections::HashSet;
 
 use crate::splitter_core::laser::LaserPattern;
-use crate::splitter_core::projectile::Projectile;
+use crate::splitter_core::projectile::{Projectile, calculate_lifetime_from_speed};
+
+use crate::physics::definitions::{Collider, CollisionLayer};
 
 /// A simple boolean toggle. The Player mouse, Enemy AI, or D.A.V.E. just flip this to true/false.
 #[derive(Component, Default)]
@@ -27,14 +29,16 @@ pub enum ProjectileState {
 
 pub enum WeaponKind {
     Projectile {
-        mass: f32,  // Counters enemy bulk
-        speed: f32, // Counters enemy hardness
+        mass: f32,
+        speed: f32,
+        radius: f32,           // Collision radius of the projectile
+        layer: CollisionLayer, // PlayerProjectile or EnemyProjectile
         can_pierce: bool,
         aoe_max_range: Option<f32>,
         current_ammo: u32,
         max_ammo: u32,
-        fire_delay: f32,   // Seconds between shots (intra-reload)
-        reload_delay: f32, // Seconds to perform full reload
+        fire_delay: f32,
+        reload_delay: f32,
         state: ProjectileState,
         mesh: Handle<Mesh>,
         material: Handle<ColorMaterial>,
@@ -124,6 +128,8 @@ pub fn update_weapon_firing(
                 WeaponKind::Projectile {
                     mass,
                     speed,
+                    radius,
+                    layer,
                     can_pierce,
                     aoe_max_range,
                     current_ammo,
@@ -134,21 +140,28 @@ pub fn update_weapon_firing(
                     material,
                     ..
                 } => {
-                    // Only attempt firing when strictly in the Ready state with available ammo
                     if let ProjectileState::Ready = state {
                         if *current_ammo > 0 {
                             *current_ammo -= 1;
 
-                            // Spawn physical projectile
+                            // Calculate dynamic lifetime based on initial speed
+                            let lifetime = calculate_lifetime_from_speed(*speed);
+
                             commands.spawn((
                                 Projectile {
                                     mass: *mass,
                                     speed: *speed,
+                                    initial_speed: *speed,
                                     hit_entities: HashSet::new(),
                                     can_pierce: *can_pierce,
                                     aoe_max_range: *aoe_max_range,
                                     distance_traveled: 0.0,
                                 },
+                                Collider {
+                                    radius: *radius,
+                                    layer: *layer,
+                                },
+                                lifetime, // Dynamically computed lifetime attached on spawn
                                 Mesh2d(mesh.clone()),
                                 MeshMaterial2d(material.clone()),
                                 Transform::from_xyz(spawn_pos.x, spawn_pos.y, 0.0)
@@ -156,7 +169,6 @@ pub fn update_weapon_firing(
                                 GlobalTransform::default(),
                             ));
 
-                            // Transition state depending on remaining rounds
                             if *current_ammo == 0 {
                                 *state = ProjectileState::Reloading(Timer::from_seconds(
                                     *reload_delay,

@@ -44,3 +44,27 @@ pub struct EnemyArmor;
 
 #[derive(Component)]
 pub struct EnemyVisuals;
+
+pub struct EnemyTemplate {
+    pub durability: Durability,
+    pub stats: EnemyStats,
+    pub behavior: EnemyBehavior,
+    pub body_radius: f32,
+    pub color: Color,
+    pub limbs: Vec<LimbTemplate>,
+}
+
+pub struct LimbTemplate {
+    pub kind: LimbKind,
+    pub durability: Durability,
+    pub radius: f32,
+    pub local_offset: Vec2,
+    pub color: Color,
+    pub armor: Option<ArmorTemplate>,
+}
+
+pub struct ArmorTemplate {
+    pub durability: Durability,
+    pub thickness: f32,
+    pub color: Color,
+}

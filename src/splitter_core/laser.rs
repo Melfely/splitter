@@ -18,8 +18,6 @@ pub enum LaserPattern {
     },
 }
 
-pub const PLAYER_LASER_LENGTH: f32 = 5000.0;
-
 impl LaserPattern {
     /// Generates world-space 2D points along the beam path.
     pub fn generate_points(&self, origin: Vec2, direction: Vec2, time_secs: f32) -> Vec<Vec2> {

@@ -23,3 +23,6 @@ pub struct UiBlinkBarE;
 
 #[derive(Component)]
 pub struct UiWeaponContainer;
+
+#[derive(Component)]
+pub struct UiFpsText;

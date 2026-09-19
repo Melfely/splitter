@@ -1,34 +1,9 @@
 use super::definitions::{
-    Durability, EnemyAI, EnemyArmor, EnemyBehavior, EnemyLimb, EnemyMainBody, EnemyStats,
-    EnemyVisuals, LimbKind,
+    EnemyAI, EnemyArmor, EnemyLimb, EnemyMainBody, EnemyTemplate, EnemyVisuals, LimbKind,
 };
 use crate::physics::definitions::{Collider, CollisionLayer};
 use crate::splitter_core::turret::{Turret, TurretTarget};
 use bevy::prelude::*;
-
-pub struct EnemyTemplate {
-    pub durability: Durability,
-    pub stats: EnemyStats,
-    pub behavior: EnemyBehavior,
-    pub body_radius: f32,
-    pub color: Color,
-    pub limbs: Vec<LimbTemplate>,
-}
-
-pub struct LimbTemplate {
-    pub kind: LimbKind,
-    pub durability: Durability,
-    pub radius: f32,
-    pub local_offset: Vec2,
-    pub color: Color,
-    pub armor: Option<ArmorTemplate>,
-}
-
-pub struct ArmorTemplate {
-    pub durability: Durability,
-    pub thickness: f32,
-    pub color: Color,
-}
 
 pub fn spawn_enemy(
     commands: &mut Commands,

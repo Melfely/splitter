@@ -59,9 +59,12 @@ pub fn check_collisions(
 }
 
 /// Helper function to enforce your game's collision rules
-fn should_collide(layer_a: CollisionLayer, layer_b: CollisionLayer) -> bool {
+pub fn should_collide(layer_a: CollisionLayer, layer_b: CollisionLayer) -> bool {
     use CollisionLayer::*;
     match (layer_a, layer_b) {
+        // Player hull vs Enemy parts
+        (Player, EnemyMainBody) | (EnemyMainBody, Player) => true,
+        (Player, EnemyLimb) | (EnemyLimb, Player) => true,
         // Weapons collide with all enemy parts[cite: 1]
         (PlayerProjectile, EnemyMainBody) | (EnemyMainBody, PlayerProjectile) => true,
         (PlayerProjectile, EnemyLimb) | (EnemyLimb, PlayerProjectile) => true,
