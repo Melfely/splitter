@@ -1,8 +1,16 @@
-use crate::splitter_core::laser::*;
-use crate::splitter_core::turret::*;
-use crate::splitter_core::weapon::*;
+use crate::splitter_core::laser::{LaserPattern, PLAYER_LASER_LENGTH};
+use crate::splitter_core::turret::{Turret, TurretTarget};
+use crate::splitter_core::weapon::{Weapon, WeaponKind, WeaponTrigger};
+
+use crate::player::movement::player_movement;
+use crate::player::weapon::{
+    CoaxialWeapon, MainWeapon, PlayerTurret, player_mouse_aiming, player_weapon_input,
+};
+
+pub mod movement;
+pub mod weapon;
+
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 
 pub struct PlayerPlugin;
 
@@ -14,40 +22,6 @@ impl Plugin for PlayerPlugin {
         );
     }
 }
-
-pub fn player_mouse_aiming(
-    q_windows: Query<&Window, With<PrimaryWindow>>,
-    q_camera: Query<(&Camera, &GlobalTransform)>,
-    mut q_turret_target: Query<&mut TurretTarget, With<PlayerTurret>>,
-) {
-    // Fixes E0599: iter().next() safely returns an Option, bypassing the missing get_single()
-    let Some(window) = q_windows.iter().next() else {
-        return;
-    };
-    let Some((camera, camera_transform)) = q_camera.iter().next() else {
-        return;
-    };
-
-    let Some(cursor_position) = window.cursor_position() else {
-        return;
-    };
-
-    if let Ok(world_position) = camera.viewport_to_world_2d(camera_transform, cursor_position) {
-        for mut target in q_turret_target.iter_mut() {
-            target.world_pos = Some(world_position);
-        }
-    }
-}
-
-// Marker components to route inputs to the correct barrel
-#[derive(Component)]
-pub struct MainWeapon;
-
-#[derive(Component)]
-pub struct CoaxialWeapon;
-
-#[derive(Component)]
-pub struct PlayerTurret;
 
 #[derive(Component)]
 pub struct Player {
@@ -139,67 +113,4 @@ pub fn spawn_player(
                     ));
                 });
         });
-}
-
-// --------------------------------------------------------
-// NEW: Map mouse clicks to the generic trigger components
-// --------------------------------------------------------
-pub fn player_weapon_input(
-    mouse_input: Res<ButtonInput<MouseButton>>,
-    mut q_main: Query<&mut WeaponTrigger, (With<MainWeapon>, Without<CoaxialWeapon>)>,
-    mut q_coax: Query<&mut WeaponTrigger, (With<CoaxialWeapon>, Without<MainWeapon>)>,
-) {
-    let is_left_clicking = mouse_input.pressed(MouseButton::Left);
-    let is_right_clicking = mouse_input.pressed(MouseButton::Right);
-
-    for mut trigger in q_main.iter_mut() {
-        trigger.is_firing = is_left_clicking; // Routes to the rotating turret[cite: 2]
-    }
-
-    for mut trigger in q_coax.iter_mut() {
-        trigger.is_firing = is_right_clicking; // Routes to the fixed hull weapon[cite: 2]
-    }
-}
-
-fn player_movement(
-    mut query: Query<(&mut Transform, &Player)>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    time: Res<Time>,
-) {
-    for (mut transform, player) in query.iter_mut() {
-        let mut forward_movement = 0.0;
-        let mut rotation_movement = 0.0;
-
-        // Forward/Backward (W/S)
-        if keyboard_input.pressed(KeyCode::KeyW) {
-            forward_movement += 1.0;
-        }
-        if keyboard_input.pressed(KeyCode::KeyS) {
-            forward_movement -= 1.0;
-        }
-
-        // Steering (A/D)
-        if keyboard_input.pressed(KeyCode::KeyA) {
-            rotation_movement += 1.0;
-        }
-        if keyboard_input.pressed(KeyCode::KeyD) {
-            rotation_movement -= 1.0;
-        }
-
-        // Fixed: delta_seconds() is now delta_secs()
-        transform.rotate_z(rotation_movement * player.turn_speed * time.delta_secs());
-
-        let up = transform.local_y();
-        transform.translation += up * forward_movement * player.move_speed * time.delta_secs();
-
-        // Blink (Q/E)
-        if keyboard_input.just_pressed(KeyCode::KeyQ) {
-            let left = -transform.local_x();
-            transform.translation += left * player.blink_distance;
-        }
-        if keyboard_input.just_pressed(KeyCode::KeyE) {
-            let right = transform.local_x();
-            transform.translation += right * player.blink_distance;
-        }
-    }
 }

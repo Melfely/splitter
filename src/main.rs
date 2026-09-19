@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 pub mod player;
 pub mod splitter_core;
+pub mod ui;
 
 fn main() {
     App::new()
