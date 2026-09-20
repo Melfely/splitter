@@ -10,14 +10,14 @@ use rand::RngExt;
 /// Generates a `WaveDefinition` for waves 1 through 20 based on wave scaling rules.
 /// Rolls a 1/10 (10%) chance for each individual enemy to spawn as its special variant.
 pub fn generate_wave_definition(wave_number: u32) -> Option<WaveDefinition> {
-    if wave_number < 1 || wave_number > 20 {
+    if wave_number < 1 || wave_number > 100 {
         return None;
     }
 
     let mut rng = rand::rng();
 
-    // Fast red chargers start at 10 and increase by 10 per wave number
-    let total_red_chargers = (wave_number * 10) as usize;
+    // Fast red chargers start at 30 and increase by 30 per wave number
+    let total_red_chargers = (wave_number * 30) as usize;
     let mut regular_red_count = 0;
     let mut special_red_count = 0;
 
@@ -45,9 +45,9 @@ pub fn generate_wave_definition(wave_number: u32) -> Option<WaveDefinition> {
         });
     }
 
-    // Waves 11 through 20 include heavy yellow tanks
-    if (11..=20).contains(&wave_number) {
-        let total_tanks = 1;
+    // Waves 11 through 100 include heavy yellow tanks
+    if (11..=100).contains(&wave_number) {
+        let total_tanks = wave_number - 10;
         let mut regular_tank_count = 0;
         let mut special_tank_count = 0;
 
