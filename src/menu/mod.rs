@@ -1,6 +1,8 @@
+use crate::player::definitions::PlayerLoadout;
 use bevy::prelude::*;
 
 pub mod game_over;
+pub mod hangar;
 pub mod main;
 pub mod pause;
 
@@ -10,12 +12,12 @@ use game_over::PendingRestart;
 pub enum GameState {
     #[default]
     MainMenu,
+    Hangar,
     InGame,
     Paused,
     GameOver,
 }
 
-/// If we bounced to MainMenu from Retry, immediately start a new run
 fn handle_pending_restart(
     mut commands: Commands,
     pending: Option<Res<PendingRestart>>,
@@ -32,6 +34,8 @@ pub struct SplitterMenuPlugin;
 impl Plugin for SplitterMenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<GameState>()
+            .init_resource::<hangar::SelectedGearState>()
+            .init_resource::<PlayerLoadout>() // <-- ADD THIS LINE
             // Main Menu Systems
             .add_systems(
                 OnEnter(GameState::MainMenu),
@@ -41,9 +45,21 @@ impl Plugin for SplitterMenuPlugin {
                 Update,
                 (
                     main::handle_play_button_click,
+                    main::handle_hangar_button_click,
                     main::handle_exit_button_click,
                 )
                     .run_if(in_state(GameState::MainMenu)),
+            )
+            // Hangar / Gear Selection Systems
+            .add_systems(OnEnter(GameState::Hangar), hangar::setup_hangar_menu)
+            .add_systems(
+                Update,
+                (
+                    hangar::handle_hangar_interactions,
+                    hangar::update_hangar_ui,
+                    hangar::handle_hangar_buttons,
+                )
+                    .run_if(in_state(GameState::Hangar)),
             )
             // Pause Systems
             .add_systems(

@@ -1,4 +1,5 @@
 use crate::camera::{ARENA_HEIGHT, ARENA_WIDTH};
+use crate::splitter_core::weapon::Weapon;
 use bevy::prelude::*;
 
 #[derive(Component)]
@@ -48,6 +49,51 @@ impl Default for PlayerBlink {
         }
     }
 }
+
+/// Marker component for identifying mount locations on player/entities.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MountLocation {
+    Turret,
+    Coaxial,
+}
+
+/// Defines the mount point type and relative placement.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum MountPoint {
+    /// Rotating turret mount. Standard weapon stats.
+    Turret { offset: Vec3 },
+    /// Fixed hull mount. Grants +10% projectile speed boost.
+    Coaxial { offset: Vec3 },
+    /// Dual rotating turret mount. 50% projectile mass penalty.
+    DualTurret { offset: Vec3, spacing: f32 },
+    /// Dual fixed hull mount. 50% projectile mass penalty and +10% speed boost.
+    DualCoaxial { offset: Vec3, spacing: f32 },
+}
+
+/// Fully self-contained weapon mounting hook spec assigned from external configuration.
+#[derive(Clone)]
+pub struct MountedWeapon {
+    pub weapon: Weapon,
+    pub mount_point: MountPoint,
+    pub mesh: Handle<Mesh>,
+    pub material: Handle<ColorMaterial>,
+}
+
+#[derive(Resource, Default, Clone)]
+pub struct PlayerLoadout {
+    pub coaxial_mounts: Vec<MountedWeapon>,
+    pub turret_mounts: Vec<MountedWeapon>,
+}
+
+// Marker components to route inputs to the correct barrel
+#[derive(Component)]
+pub struct MainWeapon;
+
+#[derive(Component)]
+pub struct CoaxialWeapon;
+
+#[derive(Component)]
+pub struct PlayerTurret;
 
 #[derive(Component)]
 pub struct Player {}

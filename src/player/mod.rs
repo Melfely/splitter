@@ -1,28 +1,32 @@
 use crate::GameplaySet;
 use crate::physics::definitions::{Collider, CollisionLayer};
 use crate::player::collisions::handle_player_collisions;
-use crate::player::definitions::{Player, PlayerBlink, PlayerPhysics};
+use crate::player::definitions::{
+    MountPoint, MountedWeapon, Player, PlayerBlink, PlayerLoadout, PlayerPhysics, PlayerTurret,
+};
 use crate::player::health::player_health_system;
+use crate::player::mount::attach_mounted_weapon;
 use crate::player::movement::{handle_out_of_bounds_damage, update_player_movement};
 use crate::player::shield::{
     PlayerShield, Shield, sync_shield_collider_and_visibility, update_shield_system,
 };
 use crate::player::weapon::{
-    CoaxialWeapon, MainWeapon, PlayerTurret, player_mouse_aiming, player_reload_input,
-    player_weapon_input, render_turret_aim_indicator,
+    player_mouse_aiming, player_reload_input, player_weapon_input, render_turret_aim_indicator,
 };
+use crate::player::weapons::{create_autocannon, create_heavy_cannon};
+
 use crate::splitter_core::PLAYER_ATTACK_DISTANCE;
-use crate::splitter_core::laser::LaserPattern;
 use crate::splitter_core::projectile::Durability;
 use crate::splitter_core::turret::{Turret, TurretTarget};
-use crate::splitter_core::weapon::{ProjectileState, Weapon, WeaponKind, WeaponTrigger};
 
 pub mod collisions;
 pub mod definitions;
 pub mod health;
+pub mod mount;
 pub mod movement;
 pub mod shield;
 pub mod weapon;
+pub mod weapons;
 
 use crate::GameState;
 use bevy::prelude::*;
@@ -61,22 +65,51 @@ pub fn spawn_player(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    loadout: Option<Res<PlayerLoadout>>,
 ) {
     let hull_color = materials.add(Color::srgb(0.3, 0.3, 0.3));
     let turret_color = materials.add(Color::srgb(0.5, 0.5, 0.5));
-    let weapon_color = materials.add(Color::srgb(0.1, 0.1, 0.1));
-
-    // Transparent Light Blue material (Alpha = 0.05)
+    let weapon_barrel_color = materials.add(Color::srgb(0.1, 0.1, 0.1));
     let shield_material = materials.add(Color::srgba(0.2, 0.7, 1.0, 0.05));
+
+    // Fallback containers used if no PlayerLoadout resource exists in the world
+    let fallback_coaxial;
+    let fallback_turret;
+
+    let (coaxial_mounts, turret_mounts) = if let Some(ref loadout) = loadout {
+        (&loadout.coaxial_mounts, &loadout.turret_mounts)
+    } else {
+        // Construct standard default weapons if loadout resource was not initialized
+        fallback_coaxial = vec![MountedWeapon {
+            weapon: create_autocannon(&mut meshes, &mut materials),
+            mount_point: MountPoint::Coaxial {
+                // Z = 0.05 places coaxial barrels above Hull (0.0) but under Turret (0.1)
+                offset: Vec3::new(20.0, 40.0, 0.05),
+            },
+            mesh: meshes.add(Rectangle::new(10.0, 40.0)),
+            material: weapon_barrel_color.clone(),
+        }];
+
+        fallback_turret = vec![MountedWeapon {
+            weapon: create_heavy_cannon(&mut meshes, &mut materials),
+            mount_point: MountPoint::Turret {
+                // Local Z = 0.05 places turret barrels above Turret mesh (0.1)
+                offset: Vec3::new(0.0, 30.0, 0.05),
+            },
+            mesh: meshes.add(Rectangle::new(12.0, 50.0)),
+            material: weapon_barrel_color.clone(),
+        }];
+
+        (&fallback_coaxial, &fallback_turret)
+    };
 
     commands
         .spawn((
             Mesh2d(meshes.add(Rectangle::new(60.0, 80.0))),
             MeshMaterial2d(hull_color),
-            Transform::from_xyz(0.0, 0.0, 0.0),
+            Transform::from_xyz(0.0, 0.0, 0.0), // Hull Base: Z = 0.0
             PlayerBlink::default(),
             Player {},
-            // Permanent Hull Health
             Durability {
                 hp: 10.0,
                 max_hp: 10.0,
@@ -87,7 +120,7 @@ pub fn spawn_player(
             PlayerPhysics::default(),
         ))
         .with_children(|parent| {
-            // Shield Child Entity: Expanded Ellipse (65.0x85.0)
+            // Shield Child Entity (Z = 0.2, renders above everything)
             parent.spawn((
                 PlayerShield,
                 Shield::default(),
@@ -106,34 +139,12 @@ pub fn spawn_player(
                 },
             ));
 
-            // Coaxial Weapon
-            parent.spawn((
-                Mesh2d(meshes.add(Rectangle::new(10.0, 40.0))),
-                MeshMaterial2d(weapon_color.clone()),
-                Transform::from_xyz(20.0, 40.0, -0.1),
-                CoaxialWeapon,
-                WeaponTrigger::default(),
-                Weapon {
-                    kind: WeaponKind::Laser {
-                        intensity: 15.0,
-                        focus: 0.8,
-                        current_heat: 0.0,
-                        max_heat: 100.0,
-                        heating_rate: 80.0,
-                        cooling_rate: 40.0,
-                        recharge_timer: Timer::from_seconds(2.0, TimerMode::Once),
-                        is_recharging: false,
-                        pattern: LaserPattern::Lightning {
-                            length: PLAYER_ATTACK_DISTANCE,
-                            segment_length: 50.0,
-                            jitter: 15.0,
-                        },
-                        color: Color::srgb(0.0, 0.8, 1.0),
-                    },
-                },
-            ));
+            // Safely attach coaxial weapons (Z = 0.05)
+            for mounted_weapon in coaxial_mounts.iter().cloned() {
+                attach_mounted_weapon(parent, mounted_weapon);
+            }
 
-            // Main Turret
+            // Main Turret (Z = 0.1, renders above Hull and Coaxial weapons)
             parent
                 .spawn((
                     Mesh2d(meshes.add(Rectangle::new(40.0, 40.0))),
@@ -144,30 +155,10 @@ pub fn spawn_player(
                     PlayerTurret,
                 ))
                 .with_children(|turret| {
-                    turret.spawn((
-                        Mesh2d(meshes.add(Rectangle::new(12.0, 50.0))),
-                        MeshMaterial2d(weapon_color),
-                        Transform::from_xyz(0.0, 30.0, -0.1),
-                        MainWeapon,
-                        WeaponTrigger::default(),
-                        Weapon {
-                            kind: WeaponKind::Projectile {
-                                mass: 25.0,
-                                speed: 300.0,
-                                radius: 8.0,
-                                layer: CollisionLayer::PlayerProjectile,
-                                can_pierce: true,
-                                aoe_max_range: None,
-                                current_ammo: 1,
-                                max_ammo: 1,
-                                fire_delay: 0.0,
-                                reload_delay: 1.25,
-                                state: ProjectileState::Ready,
-                                mesh: meshes.add(Rectangle::new(8.0, 16.0)),
-                                material: materials.add(Color::srgb(0.9, 0.8, 0.2)),
-                            },
-                        },
-                    ));
+                    // Safely attach turret weapons (Local Z = 0.05, renders above Turret Base)
+                    for mounted_weapon in turret_mounts.iter().cloned() {
+                        attach_mounted_weapon(turret, mounted_weapon);
+                    }
                 });
         });
 }

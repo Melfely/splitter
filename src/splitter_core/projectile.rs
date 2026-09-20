@@ -1,15 +1,24 @@
 use bevy::prelude::*;
+use rand::RngExt;
 use std::collections::HashSet;
 
-use crate::physics::collisions::should_collide;
-use crate::splitter_core::Lifetime;
-
+use crate::GameState;
 use crate::enemies::definitions::{EnemyAI, EnemyArmor, EnemyLimb, EnemyMainBody, EnemyStats};
+use crate::physics::collisions::should_collide;
 use crate::physics::definitions::{Collider, CollisionLayer, CollisionMessage};
-
+use crate::splitter_core::Lifetime;
+use crate::splitter_core::PLAYER_ATTACK_DISTANCE;
 use crate::splitter_core::hit_particle::spawn_impact_sparks;
 
-use crate::splitter_core::PLAYER_ATTACK_DISTANCE;
+/// Configuration defining how a projectile splits upon detonation.
+#[derive(Clone, Debug)]
+pub struct AoeSplitConfig {
+    pub child_count: u32,
+    pub child_speed: f32,
+    pub child_mass: f32,
+    pub child_radius: f32,
+    pub child_can_pierce: bool,
+}
 
 /// Unified health and resistance stats. Attach to any entity capable of taking damage.
 #[derive(Component, Clone, Copy, Debug)]
@@ -29,14 +38,79 @@ pub struct Projectile {
     pub can_pierce: bool,
     pub aoe_max_range: Option<f32>,
     pub distance_traveled: f32,
+    pub aoe_split: Option<AoeSplitConfig>,
+}
+
+/// Helper function to detonate an explosive projectile, spawning radial child projectiles with randomized spread.
+pub fn detonate_aoe_split(
+    commands: &mut Commands,
+    epicenter: Vec3,
+    layer: CollisionLayer,
+    mesh: Handle<Mesh>,
+    material: Handle<ColorMaterial>,
+    config: &AoeSplitConfig,
+) {
+    if config.child_count == 0 {
+        return;
+    }
+
+    let mut rng = rand::rng();
+
+    // Random base offset so explosions aren't aligned in identical cardinal directions
+    let base_angle_offset = rng.random_range(0.0..std::f32::consts::TAU);
+    let angle_step = std::f32::consts::TAU / config.child_count as f32;
+
+    for i in 0..config.child_count {
+        // 1. Angular Jitter: Slight offset (+/- 20% of step size)
+        let angle_jitter = rng.random_range(-angle_step * 0.2..angle_step * 0.2);
+        let angle = base_angle_offset + (i as f32 * angle_step) + angle_jitter;
+        let rotation = Quat::from_rotation_z(angle);
+
+        // 2. Speed Variance: Speed varies by +/- 15% for organic shrapnel spread
+        let speed_multiplier = rng.random_range(0.85..=1.15);
+        let actual_speed = config.child_speed * speed_multiplier;
+
+        let lifetime = calculate_lifetime_from_speed(actual_speed);
+
+        commands.spawn((
+            Projectile {
+                mass: config.child_mass,
+                speed: actual_speed,
+                initial_speed: actual_speed,
+                hit_entities: HashSet::new(),
+                can_pierce: config.child_can_pierce,
+                aoe_max_range: None,
+                distance_traveled: 0.0,
+                aoe_split: None, // Fragments do not chain-split by default
+            },
+            Collider {
+                radius: config.child_radius,
+                layer,
+            },
+            lifetime,
+            Mesh2d(mesh.clone()),
+            MeshMaterial2d(material.clone()),
+            Transform::from_xyz(epicenter.x, epicenter.y, 0.0).with_rotation(rotation),
+            GlobalTransform::default(),
+            DespawnOnEnter(GameState::MainMenu),
+        ));
+    }
 }
 
 pub fn update_projectile_movement(
     time: Res<Time>,
     mut commands: Commands,
-    mut projectiles: Query<(Entity, &mut Transform, &mut Projectile)>,
+    mut projectiles: Query<(
+        Entity,
+        &mut Transform,
+        &mut Projectile,
+        &Collider,
+        &GlobalTransform,
+        &Mesh2d,
+        &MeshMaterial2d<ColorMaterial>, // <-- Add <ColorMaterial>
+    )>,
 ) {
-    for (entity, mut transform, mut projectile) in projectiles.iter_mut() {
+    for (entity, mut transform, mut projectile, collider, gt, mesh, mat) in projectiles.iter_mut() {
         let step = transform.up() * projectile.speed * time.delta_secs();
 
         transform.translation += step;
@@ -44,7 +118,17 @@ pub fn update_projectile_movement(
 
         if let Some(max_range) = projectile.aoe_max_range {
             if projectile.distance_traveled >= max_range {
-                commands.entity(entity).despawn();
+                if let Some(ref split_config) = projectile.aoe_split {
+                    detonate_aoe_split(
+                        &mut commands,
+                        gt.translation(),
+                        collider.layer,
+                        mesh.0.clone(),
+                        mat.0.clone(),
+                        split_config,
+                    );
+                }
+                commands.entity(entity).try_despawn();
             }
         }
     }
@@ -81,7 +165,13 @@ pub fn handle_projectile_collisions(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut collision_messages: MessageReader<CollisionMessage>,
-    mut projectile_query: Query<(&mut Projectile, &Collider, &GlobalTransform)>,
+    mut projectile_query: Query<(
+        &mut Projectile,
+        &Collider,
+        &GlobalTransform,
+        &Mesh2d,
+        &MeshMaterial2d<ColorMaterial>,
+    )>,
     mut target_query: Query<
         (
             &mut Durability,
@@ -114,7 +204,7 @@ pub fn handle_projectile_collisions(
             continue;
         }
 
-        let Ok((mut projectile, proj_collider, proj_global_transform)) =
+        let Ok((mut projectile, proj_collider, proj_global_transform, proj_mesh, proj_mat)) =
             projectile_query.get_mut(proj_entity)
         else {
             continue;
@@ -212,8 +302,17 @@ pub fn handle_projectile_collisions(
 
                     let mut hit_entities = HashSet::new();
                     hit_entities.insert(target_entity);
+
+                    // Add parent body and all sibling entities on the same enemy
                     if let Some(child_of) = target_child_of {
-                        hit_entities.insert(child_of.parent());
+                        let parent_entity = child_of.parent();
+                        hit_entities.insert(parent_entity);
+
+                        if let Ok(siblings) = children_query.get(parent_entity) {
+                            for sibling in siblings.iter() {
+                                hit_entities.insert(sibling);
+                            }
+                        }
                     }
 
                     let limb_lifetime = calculate_lifetime_from_speed(limb_speed);
@@ -230,6 +329,7 @@ pub fn handle_projectile_collisions(
                                 can_pierce: false,
                                 aoe_max_range: None,
                                 distance_traveled: 0.0,
+                                aoe_split: None,
                             },
                             Collider {
                                 radius: target_collider.radius,
@@ -257,6 +357,17 @@ pub fn handle_projectile_collisions(
 
         // 7. Non-piercing projectiles ALWAYS despawn after first impact
         if !projectile.can_pierce {
+            if let Some(ref split_config) = projectile.aoe_split {
+                detonate_aoe_split(
+                    &mut commands,
+                    proj_global_transform.translation(),
+                    proj_collider.layer,
+                    proj_mesh.0.clone(),
+                    proj_mat.0.clone(),
+                    split_config,
+                );
+            }
+
             destroyed_entities.insert(proj_entity);
             commands.entity(proj_entity).try_despawn();
             continue;
@@ -264,6 +375,17 @@ pub fn handle_projectile_collisions(
 
         // 8. Piercing projectiles despawn if speed drops to <= 10% of initial speed
         if projectile.speed <= (projectile.initial_speed * 0.10) {
+            if let Some(ref split_config) = projectile.aoe_split {
+                detonate_aoe_split(
+                    &mut commands,
+                    proj_global_transform.translation(),
+                    proj_collider.layer,
+                    proj_mesh.0.clone(),
+                    proj_mat.0.clone(),
+                    split_config,
+                );
+            }
+
             destroyed_entities.insert(proj_entity);
             commands.entity(proj_entity).try_despawn();
         }

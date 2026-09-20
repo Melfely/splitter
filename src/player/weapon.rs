@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use std::collections::HashSet;
 
+use crate::player::definitions::{CoaxialWeapon, MainWeapon, PlayerTurret};
 use crate::splitter_core::turret::TurretTarget;
 use crate::splitter_core::weapon::{ProjectileState, Weapon, WeaponKind, WeaponTrigger};
 
@@ -9,16 +10,6 @@ use crate::physics::definitions::{CELL_SIZE, Collider, CollisionLayer, SpatialGr
 use crate::player::PLAYER_ATTACK_DISTANCE;
 
 use bevy::window::PrimaryWindow;
-
-// Marker components to route inputs to the correct barrel
-#[derive(Component)]
-pub struct MainWeapon;
-
-#[derive(Component)]
-pub struct CoaxialWeapon;
-
-#[derive(Component)]
-pub struct PlayerTurret;
 
 // --------------------------------------------------------
 // NEW: Map mouse clicks to the generic trigger components

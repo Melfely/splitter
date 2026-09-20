@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use std::collections::HashSet;
 
 use crate::splitter_core::laser::LaserPattern;
-use crate::splitter_core::projectile::{Projectile, calculate_lifetime_from_speed};
+use crate::splitter_core::projectile::{AoeSplitConfig, Projectile, calculate_lifetime_from_speed};
 
 use crate::GameState;
 use crate::physics::definitions::{Collider, CollisionLayer};
@@ -13,7 +13,7 @@ pub struct WeaponTrigger {
     pub is_firing: bool,
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct Weapon {
     pub kind: WeaponKind,
 }
@@ -28,6 +28,7 @@ pub enum ProjectileState {
     Reloading(Timer),
 }
 
+#[derive(Clone)]
 pub enum WeaponKind {
     Projectile {
         mass: f32,
@@ -36,6 +37,7 @@ pub enum WeaponKind {
         layer: CollisionLayer, // PlayerProjectile or EnemyProjectile
         can_pierce: bool,
         aoe_max_range: Option<f32>,
+        aoe_split: Option<AoeSplitConfig>,
         current_ammo: u32,
         max_ammo: u32,
         fire_delay: f32,
@@ -133,6 +135,7 @@ pub fn update_weapon_firing(
                     layer,
                     can_pierce,
                     aoe_max_range,
+                    aoe_split,
                     current_ammo,
                     fire_delay,
                     reload_delay,
@@ -157,6 +160,7 @@ pub fn update_weapon_firing(
                                     can_pierce: *can_pierce,
                                     aoe_max_range: *aoe_max_range,
                                     distance_traveled: 0.0,
+                                    aoe_split: aoe_split.clone(),
                                 },
                                 Collider {
                                     radius: *radius,
@@ -208,7 +212,7 @@ pub fn update_weapon_firing(
                         // Draw continuous pattern visually using Bevy Gizmos
                         gizmo().linestrip_2d(points.clone(), *color);
 
-                        // TODO: Pass `points` to physics system to check segment intersections with enemy limbs[cite: 1]
+                        // TODO: Pass `points` to physics system to check segment intersections with enemy limbs
                     }
                 }
             }
