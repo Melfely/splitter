@@ -2,6 +2,24 @@ use crate::camera::{ARENA_HEIGHT, ARENA_WIDTH};
 use crate::splitter_core::weapon::Weapon;
 use bevy::prelude::*;
 
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShieldState {
+    Active,
+    Disabled,
+}
+
+#[derive(Component)]
+pub struct PlayerShield;
+
+#[derive(Component)]
+pub struct Shield {
+    pub state: ShieldState,
+    pub regen_rate: f32,
+    pub recharge_delay: f32,
+    pub delay_timer: Timer,
+    pub last_hp: f32,
+}
+
 #[derive(Component)]
 pub struct PlayerPhysics {
     pub velocity: Vec2,

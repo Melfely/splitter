@@ -96,7 +96,9 @@ pub fn render_turret_aim_indicator(
     };
 
     let origin = turret_transform.translation().truncate();
-    let direction = turret_transform.up().truncate();
+    let direction = (turret_transform.rotation() * Vec3::Y)
+        .truncate()
+        .normalize_or_zero();
 
     let mut closest_hit_dist = PLAYER_ATTACK_DISTANCE;
     let mut hit_entity: Option<Entity> = None;

@@ -20,9 +20,11 @@ pub fn create_heavy_cannon(
             max_ammo: 1,
             fire_delay: 0.0,
             reload_delay: 1.25,
-            state: ProjectileState::Ready,
+            state: ProjectileState::default(),
             mesh: meshes.add(Rectangle::new(8.0, 16.0)),
             material: materials.add(Color::srgb(0.9, 0.8, 0.2)),
+            pellets_per_shot: 1,
+            spread_angle: 0.0,
         },
     }
 }

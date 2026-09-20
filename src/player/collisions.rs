@@ -1,8 +1,7 @@
-use super::definitions::PlayerPhysics;
+use super::definitions::{PlayerPhysics, PlayerShield};
 use crate::enemies::definitions::{EnemyMainBody, EnemyStats};
 use crate::physics::definitions::{Collider, CollisionLayer, CollisionMessage};
 use crate::player::Player;
-use crate::player::shield::PlayerShield;
 use crate::splitter_core::projectile::{Durability, Projectile};
 use bevy::prelude::*;
 

@@ -1,24 +1,9 @@
 use crate::effects::definitions::EffectAssets;
 use crate::effects::systems::spawn_shield_break_fx;
 use crate::physics::definitions::{Collider, CollisionLayer};
-use crate::player::definitions::Player;
+use crate::player::definitions::{Player, PlayerShield, Shield, ShieldState};
 use crate::splitter_core::projectile::Durability;
 use bevy::prelude::*;
-
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ShieldState {
-    Active,
-    Disabled,
-}
-
-#[derive(Component)]
-pub struct Shield {
-    pub state: ShieldState,
-    pub regen_rate: f32,
-    pub recharge_delay: f32,
-    pub delay_timer: Timer,
-    pub last_hp: f32,
-}
 
 impl Default for Shield {
     fn default() -> Self {
@@ -31,9 +16,6 @@ impl Default for Shield {
         }
     }
 }
-
-#[derive(Component)]
-pub struct PlayerShield;
 
 pub fn update_shield_system(
     time: Res<Time>,

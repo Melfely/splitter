@@ -35,7 +35,8 @@ pub fn update_turret_aiming(
                 // 4. Interpolate the LOCAL transform towards the new LOCAL target
                 transform.rotation = transform
                     .rotation
-                    .slerp(target_local_rotation, turret.turn_speed * time.delta_secs());
+                    .slerp(target_local_rotation, turret.turn_speed * time.delta_secs())
+                    .normalize(); // Prevents quaternion length drift
             }
         }
     }

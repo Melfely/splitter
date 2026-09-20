@@ -2,14 +2,13 @@ use crate::GameplaySet;
 use crate::physics::definitions::{Collider, CollisionLayer};
 use crate::player::collisions::handle_player_collisions;
 use crate::player::definitions::{
-    MountPoint, MountedWeapon, Player, PlayerBlink, PlayerLoadout, PlayerPhysics, PlayerTurret,
+    MountPoint, MountedWeapon, Player, PlayerBlink, PlayerLoadout, PlayerPhysics, PlayerShield,
+    PlayerTurret, Shield,
 };
 use crate::player::health::player_health_system;
 use crate::player::mount::attach_mounted_weapon;
 use crate::player::movement::{handle_out_of_bounds_damage, update_player_movement};
-use crate::player::shield::{
-    PlayerShield, Shield, sync_shield_collider_and_visibility, update_shield_system,
-};
+use crate::player::shield::{sync_shield_collider_and_visibility, update_shield_system};
 use crate::player::weapon::{
     player_mouse_aiming, player_reload_input, player_weapon_input, render_turret_aim_indicator,
 };

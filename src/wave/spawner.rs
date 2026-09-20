@@ -48,10 +48,9 @@ pub fn update_wave_spawner(
 
     wave_state.game_timer += time.delta_secs();
 
+    // Spawner only handles draining the queue; wave lifecycle state transitions
+    // are delegated entirely to `auto_wave_advancement_system`.
     if wave_state.pending_spawns.is_empty() {
-        if wave_state.current_enemies == 0 {
-            wave_state.wave_in_progress = false;
-        }
         return;
     }
 

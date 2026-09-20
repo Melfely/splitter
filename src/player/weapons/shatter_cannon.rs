@@ -15,7 +15,7 @@ pub fn create_shatter_cannon(
             radius: 7.0,
             layer: CollisionLayer::PlayerProjectile,
             can_pierce: false,
-            aoe_max_range: Some(350.0),
+            aoe_max_range: Some(900.0),
             aoe_split: Some(AoeSplitConfig {
                 child_count: 12,         // Spawns 12 shrapnel fragments in a full circle
                 child_speed: 400.0,      // High-velocity cluster burst
@@ -27,9 +27,11 @@ pub fn create_shatter_cannon(
             max_ammo: 4,
             fire_delay: 0.35,
             reload_delay: 2.0,
-            state: ProjectileState::Ready,
+            state: ProjectileState::default(),
             mesh: meshes.add(Circle::new(7.0)),
             material: materials.add(Color::srgb(0.95, 0.3, 0.1)),
+            pellets_per_shot: 1,
+            spread_angle: 0.0,
         },
     }
 }

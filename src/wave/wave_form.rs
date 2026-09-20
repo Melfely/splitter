@@ -3,6 +3,7 @@ use crate::enemies::types::{
     spawn_fast_red_charger, spawn_fast_red_charger_special, spawn_heavy_yellow_tank,
     spawn_heavy_yellow_tank_special,
 };
+use crate::menu::GameState;
 use bevy::prelude::*;
 use rand::RngExt;
 
@@ -84,9 +85,21 @@ pub fn generate_wave_definition(wave_number: u32) -> Option<WaveDefinition> {
     })
 }
 
-/// System that automatically advances to and starts the next wave when no wave is currently active.
-pub fn auto_wave_advancement_system(mut wave_state: ResMut<WaveState>) {
-    if !wave_state.wave_in_progress {
+/// System that manages wave lifecycle:
+/// - Starts the next wave when returning to `GameState::InGame` or on initial start.
+/// - Detects wave completion and transitions to `GameState::CardSelect`.
+pub fn auto_wave_advancement_system(
+    mut wave_state: ResMut<WaveState>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if wave_state.wave_in_progress {
+        // Wave active: trigger card selection menu when all spawns are complete and enemies killed
+        if wave_state.pending_spawns.is_empty() && wave_state.current_enemies == 0 {
+            wave_state.wave_in_progress = false;
+            next_state.set(GameState::CardSelect);
+        }
+    } else {
+        // Wave inactive: start next wave (Wave 1 on initial start, or Wave N after returning from CardSelect)
         let next_wave_num = wave_state.current_wave + 1;
         if let Some(next_wave_def) = generate_wave_definition(next_wave_num) {
             wave_state.start_wave(next_wave_def);

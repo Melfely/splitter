@@ -111,7 +111,8 @@ pub fn update_projectile_movement(
     )>,
 ) {
     for (entity, mut transform, mut projectile, collider, gt, mesh, mat) in projectiles.iter_mut() {
-        let step = transform.up() * projectile.speed * time.delta_secs();
+        let direction = (transform.rotation * Vec3::Y).normalize_or_zero();
+        let step = direction * projectile.speed * time.delta_secs();
 
         transform.translation += step;
         projectile.distance_traveled += step.length();
@@ -232,7 +233,9 @@ pub fn handle_projectile_collisions(
 
         // 4. Visual impact sparks
         let impact_pos = target_global_transform.translation();
-        let bullet_dir = proj_global_transform.up().truncate();
+        let bullet_dir = (proj_global_transform.compute_transform().rotation * Vec3::Y)
+            .truncate()
+            .normalize_or_zero();
         let spark_color = if target_durability.hp <= 0.0 {
             Color::srgb(1.0, 0.3, 0.1)
         } else {

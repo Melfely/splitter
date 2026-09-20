@@ -3,8 +3,7 @@ use crate::splitter_core::weapon::{ProjectileState, Weapon, WeaponKind};
 use bevy::prelude::*;
 use std::collections::HashSet; // References existing weapon structures[cite: 2]
 
-use crate::player::definitions::{Player, PlayerBlink};
-use crate::player::shield::PlayerShield;
+use crate::player::definitions::{Player, PlayerBlink, PlayerShield};
 use crate::splitter_core::projectile::Durability;
 
 use crate::ui::definitions::*;

@@ -1,6 +1,7 @@
 use crate::player::definitions::PlayerLoadout;
 use bevy::prelude::*;
 
+pub mod card_selector;
 pub mod game_over;
 pub mod hangar;
 pub mod main;
@@ -14,6 +15,7 @@ pub enum GameState {
     MainMenu,
     Hangar,
     InGame,
+    CardSelect,
     Paused,
     GameOver,
 }
@@ -35,7 +37,8 @@ impl Plugin for SplitterMenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<GameState>()
             .init_resource::<hangar::SelectedGearState>()
-            .init_resource::<PlayerLoadout>() // <-- ADD THIS LINE
+            .init_resource::<PlayerLoadout>()
+            .init_resource::<crate::wave::card::ActiveCardSelection>()
             // Main Menu Systems
             .add_systems(
                 OnEnter(GameState::MainMenu),
@@ -60,6 +63,19 @@ impl Plugin for SplitterMenuPlugin {
                     hangar::handle_hangar_buttons,
                 )
                     .run_if(in_state(GameState::Hangar)),
+            )
+            // Card Selection Systems
+            .add_systems(
+                OnEnter(GameState::CardSelect),
+                card_selector::setup_card_selector,
+            )
+            .add_systems(
+                Update,
+                (
+                    card_selector::handle_card_interactions,
+                    card_selector::handle_card_key_inputs,
+                )
+                    .run_if(in_state(GameState::CardSelect)),
             )
             // Pause Systems
             .add_systems(
