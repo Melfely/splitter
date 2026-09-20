@@ -1,13 +1,5 @@
+use crate::splitter_core::projectile::Durability;
 use bevy::prelude::*;
-
-/// Unified health and resistance stats. Attach to any entity capable of taking damage.
-#[derive(Component, Clone, Copy, Debug)]
-pub struct Durability {
-    pub hp: f32,
-    pub max_hp: f32,
-    pub hardness: f32,
-    pub bulk: f32,
-}
 
 #[derive(Component)]
 pub struct EnemyMainBody;
@@ -45,13 +37,12 @@ pub struct EnemyArmor;
 #[derive(Component)]
 pub struct EnemyVisuals;
 
-pub struct EnemyTemplate {
+#[derive(Clone)]
+pub struct ArmorTemplate {
     pub durability: Durability,
-    pub stats: EnemyStats,
-    pub behavior: EnemyBehavior,
-    pub body_radius: f32,
+    pub radius: f32,
+    pub local_offset: Vec2,
     pub color: Color,
-    pub limbs: Vec<LimbTemplate>,
 }
 
 pub struct LimbTemplate {
@@ -60,11 +51,15 @@ pub struct LimbTemplate {
     pub radius: f32,
     pub local_offset: Vec2,
     pub color: Color,
-    pub armor: Option<ArmorTemplate>,
+    pub armor: Option<Vec<ArmorTemplate>>,
 }
 
-pub struct ArmorTemplate {
+pub struct EnemyTemplate {
     pub durability: Durability,
-    pub thickness: f32,
+    pub stats: EnemyStats,
+    pub behavior: EnemyBehavior,
+    pub body_radius: f32,
     pub color: Color,
+    pub body_armor: Option<Vec<ArmorTemplate>>,
+    pub limbs: Vec<LimbTemplate>,
 }

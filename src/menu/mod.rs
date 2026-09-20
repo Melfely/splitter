@@ -1,86 +1,79 @@
 use bevy::prelude::*;
 
+pub mod game_over;
+pub mod main;
+pub mod pause;
+
+use game_over::PendingRestart;
+
 #[derive(States, Debug, Hash, PartialEq, Eq, Clone, Default)]
 pub enum GameState {
     #[default]
     MainMenu,
     InGame,
     Paused,
+    GameOver,
 }
 
-#[derive(Component)]
-struct PlayButton;
-
-pub struct MainMenuPlugin;
-
-impl Plugin for MainMenuPlugin {
-    fn build(&self, app: &mut App) {
-        app.init_state::<GameState>()
-            .add_systems(OnEnter(GameState::MainMenu), setup_main_menu)
-            .add_systems(
-                Update,
-                handle_play_button_click.run_if(in_state(GameState::MainMenu)),
-            );
+/// If we bounced to MainMenu from Retry, immediately start a new run
+fn handle_pending_restart(
+    mut commands: Commands,
+    pending: Option<Res<PendingRestart>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if pending.is_some() {
+        commands.remove_resource::<PendingRestart>();
+        next_state.set(GameState::InGame);
     }
 }
 
-fn setup_main_menu(mut commands: Commands) {
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            DespawnOnExit(GameState::MainMenu),
-        ))
-        .with_children(|parent| {
-            parent
-                .spawn((
-                    Button,
-                    Node {
-                        width: Val::Px(200.0),
-                        height: Val::Px(65.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
-                    PlayButton,
-                ))
-                .with_children(|button| {
-                    button.spawn((
-                        Text::new("PLAY"),
-                        TextFont {
-                            font_size: FontSize::Px(32.0),
-                            ..default()
-                        },
-                        TextColor(Color::WHITE),
-                    ));
-                });
-        });
-}
+pub struct SplitterMenuPlugin;
 
-fn handle_play_button_click(
-    mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<PlayButton>),
-    >,
-    mut next_state: ResMut<NextState<GameState>>,
-) {
-    for (interaction, mut bg_color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                next_state.set(GameState::InGame);
-            }
-            Interaction::Hovered => {
-                *bg_color = BackgroundColor(Color::srgb(0.35, 0.35, 0.35));
-            }
-            Interaction::None => {
-                *bg_color = BackgroundColor(Color::srgb(0.2, 0.2, 0.2));
-            }
-        }
+impl Plugin for SplitterMenuPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_state::<GameState>()
+            // Main Menu Systems
+            .add_systems(
+                OnEnter(GameState::MainMenu),
+                (handle_pending_restart, main::setup_main_menu),
+            )
+            .add_systems(
+                Update,
+                (
+                    main::handle_play_button_click,
+                    main::handle_exit_button_click,
+                )
+                    .run_if(in_state(GameState::MainMenu)),
+            )
+            // Pause Systems
+            .add_systems(
+                Update,
+                pause::toggle_pause_system
+                    .run_if(in_state(GameState::InGame).or_else(in_state(GameState::Paused))),
+            )
+            .add_systems(OnEnter(GameState::Paused), pause::setup_pause_menu)
+            .add_systems(
+                Update,
+                (
+                    pause::handle_resume_button_click,
+                    pause::handle_main_menu_button_click,
+                    pause::handle_pause_exit_button_click,
+                )
+                    .run_if(in_state(GameState::Paused)),
+            )
+            // Game Over Systems
+            .add_systems(
+                OnEnter(GameState::GameOver),
+                game_over::setup_game_over_menu,
+            )
+            .add_systems(
+                Update,
+                (
+                    game_over::handle_retry_button_click,
+                    game_over::handle_main_menu_button_click,
+                    game_over::handle_exit_button_click,
+                )
+                    .run_if(in_state(GameState::GameOver)),
+            );
     }
 }

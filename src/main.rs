@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 pub mod camera;
+pub mod effects;
 pub mod enemies;
 pub mod menu;
 pub mod physics;
@@ -26,6 +27,7 @@ impl Plugin for GameplayPlugin {
                 physics::SplitterPhysicsPlugin,    //[cite: 4]
                 wave::SplitterWavePlugin,
                 ui::UIPlugin,
+                effects::EffectsPlugin,
             ));
     }
 }
@@ -40,7 +42,7 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugins((menu::MainMenuPlugin, GameplayPlugin))
+        .add_plugins((menu::SplitterMenuPlugin, GameplayPlugin))
         .add_systems(Startup, camera::setup_camera)
         .add_systems(Update, camera::fit_camera_viewport)
         .run();

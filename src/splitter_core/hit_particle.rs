@@ -1,3 +1,4 @@
+use crate::GameState;
 use bevy::prelude::*;
 use rand::RngExt;
 
@@ -59,6 +60,7 @@ pub fn spawn_impact_sparks(
             Mesh2d(spark_mesh),
             MeshMaterial2d(spark_mat.clone()),
             Transform::from_translation(impact_pos),
+            DespawnOnEnter(GameState::MainMenu),
         ));
     }
 }

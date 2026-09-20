@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use crate::splitter_core::laser::LaserPattern;
 use crate::splitter_core::projectile::{Projectile, calculate_lifetime_from_speed};
 
+use crate::GameState;
 use crate::physics::definitions::{Collider, CollisionLayer};
 
 /// A simple boolean toggle. The Player mouse, Enemy AI, or D.A.V.E. just flip this to true/false.
@@ -167,6 +168,7 @@ pub fn update_weapon_firing(
                                 Transform::from_xyz(spawn_pos.x, spawn_pos.y, 0.0)
                                     .with_rotation(global_transform.compute_transform().rotation),
                                 GlobalTransform::default(),
+                                DespawnOnEnter(GameState::MainMenu),
                             ));
 
                             if *current_ammo == 0 {

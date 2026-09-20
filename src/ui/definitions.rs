@@ -38,3 +38,9 @@ pub struct UiKillsText;
 
 #[derive(Component)]
 pub struct UiGameTimerText;
+
+#[derive(Component)]
+pub struct UiShieldBar;
+
+#[derive(Component)]
+pub struct UiHealthBar;

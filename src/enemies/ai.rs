@@ -1,6 +1,6 @@
 use super::definitions::{EnemyAI, EnemyBehavior, EnemyLimb, EnemyMainBody, EnemyStats, LimbKind};
 use crate::physics::definitions::{CELL_SIZE, SpatialGrid}; // Uses existing spatial grid infrastructure[cite: 1]
-use crate::player::Player;
+use crate::player::definitions::Player;
 use bevy::prelude::*;
 use std::collections::HashMap;
 
