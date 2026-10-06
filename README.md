@@ -5,8 +5,13 @@ This project was made entirely with AI. This is a project made for entertainment
 # Game
 
 This is a simple game made using Bevy, utilizing its ECS nature to have a simple physics based Wave Survivor Game. Nothing super special. 
-No art, not much human involvement. Just Gemini and Copy Paste, while I got angry at it when it made bad choices. 
+No art, not much human development. Just Gemini and Copy Paste, while I got angry at it when it made bad choices. 
 
+You can view the design Doc that I did type up by hand. (In [Obsidian](https://obsidian.md/) my beloved) To assist in making sure all the AI chats were on the same track. Since will it is IS fully vibes. I didn't want it to not at least get close to what I wanted to see work.  
+
+[Design Doc](Splitter.md)
+
+Development was me copy pasting [Gemini Chatbot](https://gemini.google.com/app) code into [Zed](https://zed.dev/). I normally use [Helix](https://helix-editor.com/), But for a 99% just copy pasting workflow, Zed is a little nicer. Both are very powerful Helix is a great CLI editor to learn.   
 
 # Showcase.
 
